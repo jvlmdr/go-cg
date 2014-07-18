@@ -7,9 +7,9 @@ func ExampleSolve() {
 		return []float64{3*x[0] - 2*x[1], -2*x[0] + 2*x[1]}
 	}
 	b := []float64{0, 2}
-	x0 := []float64{0, 0}
 
-	x, err := Solve(a, b, x0, 0, 100)
+	x0 := []float64{0, 0}
+	x, err := Solve(a, b, x0, 0, 2)
 	if err != nil {
 		fmt.Println("error:", err)
 		return
@@ -25,8 +25,8 @@ func ExampleSeq() {
 		return []float64{3*x[0] - 2*x[1], -2*x[0] + 2*x[1]}
 	}
 	b := []float64{0, 2}
-	x0 := []float64{0, 0}
 
+	x0 := []float64{0, 0}
 	seq := NewSeq(a, b, x0)
 	for i := 0; i < iter && !seq.Final(); i++ {
 		if err := seq.Iter(); err != nil {

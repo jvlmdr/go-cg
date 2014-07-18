@@ -1,19 +1,17 @@
-package cg
+package pcg
 
 import (
 	"fmt"
 	"math"
 
 	"github.com/gonum/floats"
+	"github.com/jackvalmadre/go-cg/cg"
 )
 
-// Symmetric linear map from R^n to R^n.
-type Func func(x []float64) []float64
-
-// Minimizes 1/2 x^T A x - b^T x by solving A x = b.
-// A must be symmetric and positive definite.
-func Solve(a Func, b, x0 []float64, tol float64, iter int) ([]float64, error) {
-	seq := NewSeq(a, b, x0)
+// Minimizes 1/2 x^T A x - b^T x by solving Cinv A x = Cinv b.
+// A and Cinv must be symmetric and positive definite.
+func Solve(a cg.Func, b []float64, cinv cg.Func, x0 []float64, tol float64, iter int) ([]float64, error) {
+	seq := NewSeq(a, b, cinv, x0)
 	for i := 0; i < iter && !seq.Final(); i++ {
 		if err := seq.Iter(); err != nil {
 			return nil, err
@@ -26,51 +24,53 @@ func Solve(a Func, b, x0 []float64, tol float64, iter int) ([]float64, error) {
 }
 
 type Seq struct {
-	a     Func
+	a     cg.Func
 	b     []float64
+	cinv  cg.Func
 	state state
 }
 
 type state struct {
-	x, r, p []float64
+	x, r, z, p []float64
 }
 
-func (curr state) Next(a Func) (state, error) {
+func (curr state) Next(a, cinv cg.Func) (state, error) {
 	var next state
-	// Compute alpha (line search) and take step.
+	// Compute t (line search) and take step.
 	ap := a(curr.p)
 	pap := floats.Dot(curr.p, ap)
 	if pap == 0 {
 		// Can't divide by zero.
 		return state{}, fmt.Errorf("dot(p, A*p) = 0")
 	}
-	alpha := sqrnorm(curr.r) / pap
+	alpha := floats.Dot(curr.r, curr.z) / pap
 	next.x = plusScaled(curr.x, alpha, curr.p)
 	next.r = plusScaled(curr.r, -alpha, ap)
+	next.z = cinv(next.r)
 	// Compute beta and take step.
-	beta := sqrnorm(next.r) / sqrnorm(curr.r)
-	next.p = plusScaled(next.r, beta, curr.p)
+	beta := floats.Dot(next.z, next.r) / floats.Dot(curr.z, curr.r)
+	next.p = plusScaled(next.z, beta, curr.p)
 	return next, nil
 }
 
-func NewSeq(a Func, b, x []float64) *Seq {
+func NewSeq(a cg.Func, b []float64, cinv cg.Func, x []float64) *Seq {
 	var init state
+	// Copy x.
 	init.x = clone(x)
 	// Initial direction is that of steepest descent.
-	ax := a(init.x)
+	ax := a(x)
 	init.r = minus(b, ax)
-	init.p = clone(init.r)
-	return &Seq{a, b, init}
+	init.z = cinv(init.r)
+	init.p = clone(init.z)
+	return &Seq{a, b, cinv, init}
 }
 
 func (seq *Seq) Final() bool {
-	r := seq.state.r
-	return sqrnorm(r) == 0
+	return sqrnorm(seq.state.r) == 0
 }
 
-// Performs one iteration.
 func (seq *Seq) Iter() error {
-	next, err := seq.state.Next(seq.a)
+	next, err := seq.state.Next(seq.a, seq.cinv)
 	if err != nil {
 		return err
 	}
