@@ -53,19 +53,24 @@ func ExampleSeq() {
 
 func TestSolve(t *testing.T) {
 	const n = 1000
+	m := 2 * n
 	want := randVec(n)
-	a := randMat(n)
-	// f(x) = A x
-	f := func(x []float64) []float64 {
+	v := randMat(m, n)
+	vt := mat64.NewDense(n, m, nil)
+	vt.TCopy(v)
+	// A x = V' V x
+	a := func(x []float64) []float64 {
 		xvec := mat64.Vec(x)
+		z := mat64.Vec(make([]float64, m))
 		y := mat64.Vec(make([]float64, n))
-		y.Mul(a, &xvec)
+		z.Mul(v, &xvec)
+		y.Mul(vt, &z)
 		return y
 	}
-	b := f(want)
+	b := a(want)
 	x0 := make([]float64, n)
 
-	got, err := Solve(f, b, x0, 0, n/10)
+	got, err := Solve(a, b, x0, 0, 80)
 	if err != nil {
 		t.Fatal("error:", err)
 	}
@@ -80,20 +85,14 @@ func randVec(n int) []float64 {
 	return x
 }
 
-func randMat(n int) mat64.Matrix {
-	m := 2 * n
+func randMat(m, n int) mat64.Matrix {
 	v := mat64.NewDense(m, n, nil)
 	for i := 0; i < m; i++ {
 		for j := 0; j < n; j++ {
 			v.Set(i, j, rand.NormFloat64())
 		}
 	}
-	// A <- V' V
-	a := mat64.NewDense(n, n, nil)
-	vt := mat64.NewDense(n, m, nil)
-	vt.TCopy(v)
-	a.Mul(vt, v)
-	return a
+	return v
 }
 
 func checkEqual(t *testing.T, want, got []float64, eps float64) {
