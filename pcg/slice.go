@@ -8,8 +8,17 @@ func clone(x []float64) []float64 {
 	return y
 }
 
+func dot(x, y []float64) float64 {
+	if len(x) == 1 {
+		return x[0] * y[0]
+	}
+	n := len(x)
+	m := (n + 1) / 2
+	return dot(x[0:m], y[0:m]) + dot(x[m:n], y[m:n])
+}
+
 func sqrnorm(x []float64) float64 {
-	return floats.Dot(x, x)
+	return dot(x, x)
 }
 
 func plusScaled(a []float64, k float64, b []float64) []float64 {

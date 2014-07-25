@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/gonum/floats"
 	"github.com/jackvalmadre/go-cg/cg"
 )
 
@@ -34,21 +33,21 @@ type state struct {
 	x, r, z, p []float64
 }
 
-func (curr state) Next(a, cinv cg.Func) (state, error) {
+func (curr state) Next(a, cinv cg.Func, b []float64) (state, error) {
 	var next state
 	// Compute t (line search) and take step.
 	ap := a(curr.p)
-	pap := floats.Dot(curr.p, ap)
+	pap := dot(curr.p, ap)
 	if pap == 0 {
 		// Can't divide by zero.
 		return state{}, fmt.Errorf("dot(p, A*p) = 0")
 	}
-	alpha := floats.Dot(curr.r, curr.z) / pap
+	alpha := dot(curr.r, curr.z) / pap
 	next.x = plusScaled(curr.x, alpha, curr.p)
-	next.r = plusScaled(curr.r, -alpha, ap)
+	next.r = plusScaled(curr.r, -alpha, ap) // minus(b, a(next.x))
 	next.z = cinv(next.r)
 	// Compute beta and take step.
-	beta := floats.Dot(next.z, next.r) / floats.Dot(curr.z, curr.r)
+	beta := dot(next.z, next.r) / dot(curr.z, curr.r)
 	next.p = plusScaled(next.z, beta, curr.p)
 	return next, nil
 }
@@ -70,7 +69,7 @@ func (seq *Seq) Final() bool {
 }
 
 func (seq *Seq) Iter() error {
-	next, err := seq.state.Next(seq.a, seq.cinv)
+	next, err := seq.state.Next(seq.a, seq.cinv, seq.b)
 	if err != nil {
 		return err
 	}
@@ -84,12 +83,14 @@ func (seq *Seq) Solution() []float64 {
 
 // Returns 1/2 x' A x - b' x.
 func (seq *Seq) Objective() float64 {
-	x := seq.state.x
-	return floats.Dot(x, seq.a(x))/2 - floats.Dot(seq.b, x)
+	// r = Ax - b
+	// 1/2 x'r = 1/2 x'Ax - 1/2 x'b
+	// 1/2 x'(r-b) = 1/2 x'Ax - x'b
+	x, r := seq.state.x, seq.state.r
+	return (dot(x, r) - dot(x, seq.b)) / 2
 }
 
 // Returns ||Ax - b|| / ||b||.
 func (seq *Seq) Residual() float64 {
-	r := minus(seq.a(seq.state.x), seq.b)
-	return math.Sqrt(sqrnorm(r) / sqrnorm(seq.b))
+	return math.Sqrt(sqrnorm(seq.state.r) / sqrnorm(seq.b))
 }
