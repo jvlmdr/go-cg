@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/jackvalmadre/go-cg/cg"
+	"github.com/jvlmdr/go-cg/cg"
 )
 
 // Minimizes 1/2 x^T A x - b^T x by solving Cinv A x = Cinv b.
