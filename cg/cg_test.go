@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"os"
 	"testing"
 
 	"github.com/gonum/blas/goblas"
@@ -21,7 +22,7 @@ func ExampleSolve() {
 	b := []float64{0, 2}
 
 	x0 := []float64{0, 0}
-	x, err := Solve(a, b, x0, 0, 2)
+	x, err := Solve(a, b, x0, 0, 2, nil)
 	if err != nil {
 		fmt.Println("error:", err)
 		return
@@ -70,7 +71,7 @@ func TestSolve(t *testing.T) {
 	b := a(want)
 	x0 := make([]float64, n)
 
-	got, err := Solve(a, b, x0, 0, 80)
+	got, err := Solve(a, b, x0, 0, 80, os.Stdout)
 	if err != nil {
 		t.Fatal("error:", err)
 	}

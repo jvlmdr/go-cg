@@ -2,6 +2,7 @@ package cg
 
 import (
 	"fmt"
+	"io"
 	"math"
 )
 
@@ -10,17 +11,38 @@ type Func func(x []float64) []float64
 
 // Minimizes 1/2 x^T A x - b^T x by solving A x = b.
 // A must be symmetric and positive definite.
-func Solve(a Func, b, x0 []float64, tol float64, iter int) ([]float64, error) {
+func Solve(a Func, b, x0 []float64, tol float64, iter int, debug io.Writer) ([]float64, error) {
 	seq := NewSeq(a, b, x0)
-	for i := 0; i < iter && !seq.Final(); i++ {
+	var (
+		prevObj = math.Inf(1) // Check that objective is monotonic decreasing.
+		minRes  = math.Inf(1) // Remember minimum residual thus far.
+		x       []float64
+	)
+	for i := 0; !seq.Final(); i++ {
+		if iter > 0 && !(i < iter) {
+			break
+		}
 		if err := seq.Iter(); err != nil {
 			return nil, err
 		}
-		if seq.Residual() <= tol {
+		res := seq.Residual()
+		if res <= minRes {
+			x = seq.Solution()
+		}
+		if debug != nil {
+			obj := seq.Objective()
+			var warn string
+			if obj > prevObj {
+				warn = "incr"
+			}
+			prevObj = obj
+			fmt.Fprintf(debug, "%6d: f:%13.6e r:%10.3e %4s\n", i, obj, res, warn)
+		}
+		if res <= tol {
 			break
 		}
 	}
-	return seq.Solution(), nil
+	return x, nil
 }
 
 type Seq struct {

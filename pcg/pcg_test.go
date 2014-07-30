@@ -10,7 +10,7 @@ func ExampleSolve() {
 	cinv := func(x []float64) []float64 { return x }
 
 	x0 := []float64{0, 0}
-	x, err := Solve(a, b, cinv, x0, 0, 2)
+	x, err := Solve(a, b, cinv, x0, 0, 2, nil)
 	if err != nil {
 		fmt.Println("error:", err)
 		return
